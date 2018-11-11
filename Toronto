@@ -1,0 +1,111 @@
+# Research Question: Where is crime mostly prevelant in Toronto?
+
+install.packages("tidyr")
+install.packages("dplyr")
+install.packages("parsedate")
+install.packages("forcats")
+install.packages("ggplot2")
+
+#Setting up libraries
+library(tidyr)
+library(dplyr)
+library(parsedate)
+library(parsedate)
+library(forcats)
+
+#Setting the Working Directory
+getwd()
+setwd("/Users/vishal/Documents/CKME/CKME Term 3/Dataset")
+
+# Merging the MCI dataset and Homicide dataset to get an overall dataset. The Homicide Excel file has been altered for rbind to work for analysis. 
+MCI = read.csv("/Users/vishal/Documents/CKME/CKME Term 3/Dataset/MCI_2014_to_2017.csv", header=T)
+Homicide = read.csv("/Users/vishal/Documents/CKME/CKME Term 3/Dataset/Homicide.csv", header=T)
+toronto = rbind(MCI, Homicide)
+
+#Checking to see whether rbind worked successfully
+x<-names(MCI)
+y<-names(Homicide)
+object.size(x)
+object.size(y)
+names(x)==names(y)
+
+#Checking the head,tail, and structure of the dataset for emphasis.
+head(toronto)
+tail(toronto)
+str(toronto)
+
+#As part of Data Prepartion, Homicide data set has also been altered to split occurencedate into Year, Month, Day, Day of Year, Day of Week to 
+#match the MCI Dataset attributes
+toronto$occurrencedate <- as.Date(toronto$occurrencedate, format="%Y-%m-%d")
+toronto$occurrenceyear <- format(toronto$occurrencedate, "%Y")
+toronto$occurrencemonth <- strftime(toronto$occurrencedate, format = "%B")
+toronto$occurrenceday <- format(toronto$occurrencedate, "%d")
+toronto$occurrencedayofyear <- strftime(toronto$occurrencedate, format = "%j")
+toronto$occurrencedayofweek <- strftime(toronto$occurrencedate, format = "%A")
+toronto$occurrencehour <- strftime(toronto$occurrencedate, "T%H:%M:%S.000%z")
+toronto$occurrencehour <- format(as.POSIXct(toronto$occurrencedate, format = "T%H:%M:%OS%z"), "T%H:%M:%S.000%z")
+
+#As part of Data Preparation, we will proceed to remove duplicate values in order to perform our analysis. Let's run a summary on the attribute
+summary(toronto)
+
+#The metadata provided with the dataset explains that the Index_ is the Unique ID and and event_unique_id is the general occurence number respectively. 
+#Let's check them out. 
+summary(as.factor(toronto$Index_))
+summary(as.factor(toronto$event_unique_id))
+unique(toronto$toronto$Index_)
+unique(toronto$event_unique_id)
+#As one can, Index_ values are all unique. However, event_unique_id has many duplicates. These duplicates must have been a consequence of data mining. 
+#Let us remove them.
+toronto <- toronto %>% distinct(event_unique_id, .keep_all = TRUE)
+
+# A quick summary confirms that duplicate values have been removed. 
+summary(toronto)
+summary(as.factor(toronto$event_unique_id))
+
+
+#----------------------- NA Values
+# Now lets look at NA values and remove the rows that consist of them 
+#Counting the number of NA values in each column
+summary(is.na(toronto))
+#The following attributes consist of NA values/missing data: 
+#(X, Y, Index_, reporteddaate, premisetype, ucr_code, ucr_ext, reportedyear, reportedday, reporteddayofyear, reportedhour, etc)
+
+# Replacing NA Values in "offence" with "Homicide". There were no empty values in the original MCI dataset in the "offence" column.
+toronto$offence <- as.character(toronto$offence)
+toronto$offence <- ifelse(is.na(toronto$offence), 'Homicide', toronto$offence)
+
+# Replacing NA Values in "premise" with "Homicide". There were no empty values in the original MCI dataset in the "premise" column.
+toronto$premisetype <- as.character(toronto$premisetype)
+toronto$premisetype <- ifelse(is.na(toronto$premisetype), 'Unknown-Homicide', toronto$premisetype)
+
+# Now lets look at NA values 
+summary(is.na(toronto))
+#----------------------
+
+
+#Now lets explore when these crimes occured
+unique(toronto$occurrenceyear)
+unique(toronto$reportedyear)
+#The occurrence year ranged from 1966 to 2017, but were mostly reported between 2014-2017 
+#This means that people have filed police reports 30+ years after the crime occurred. 
+#This may be due to nature of the crime.  
+
+#Let’s have a look how many incidents were reported late in our data.
+summary(as.factor(toronto$occurrenceyear))
+
+#Most occurrences happened between 2012 - 2017. Hence, we will use this range of years only for our analysis.
+toronto <- toronto[toronto$occurrenceyear >= 2012 & toronto$occurrenceyear <= 2017,]
+
+
+#Peform Feature Selection Techniques: Step-wise regression, Backward Selction, Forward Selection (In Progress)
+# step(lm(Neighbourhood~occurrencedate+reporteddate+premisetype+MCI+X+Y+Index_+ucr_code+ucr_ext+reporteddate+reportedmonth+reportedday+
+# reporteddayofyear+reporteddayofweek+reportedhour+occurrencedayofyear+reportedyear+Division+Hood_ID+FID,data=toronto),direction="both")
+
+#After further exploration, I am removing columns we do not need since they don't add any value to our research anymore: 
+# X, Y, Index_, ucr_code, ucr_ext, reporteddate, reportedmonth, reportedday, reporteddayofyear, reporteddayofweek, reportedhour, 
+# occurrencedayofyear, reportedyear, Division, Hood_ID, and FID.
+toronto <- toronto[,-c(1,2,3,6,8,9,11,12,13,14,15,16,24,25,29)]
+head(toronto)
+tail(toronto)
+
+# The Dataset has been prepared and is now ready for Exploratory Analysis!
